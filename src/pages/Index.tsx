@@ -1,14 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import Layout from '@/components/Layout';
+import HomePage from '@/components/HomePage';
+import SearchPage from '@/components/SearchPage';
+import ArticlePage from '@/components/ArticlePage';
+import ExercisesPage from '@/components/ExercisesPage';
+import CabinetPage from '@/components/CabinetPage';
 
-const Index = () => {
+type Page = 'home' | 'search' | 'article' | 'exercises' | 'cabinet';
+
+export default function Index() {
+  const [page, setPage] = useState<Page>('home');
+  const [pageData, setPageData] = useState<string | undefined>(undefined);
+
+  const handleNav = (newPage: string, data?: string) => {
+    setPage(newPage as Page);
+    setPageData(data);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 color-black text-black">Добро пожаловать!</h1>
-        <p className="text-xl text-gray-600">тут будет отображаться ваш проект</p>
-      </div>
-    </div>
+    <Layout page={page} onNav={handleNav}>
+      {page === 'home' && <HomePage onNav={handleNav} />}
+      {page === 'search' && <SearchPage initialQuery={pageData} onNav={handleNav} />}
+      {page === 'article' && pageData && <ArticlePage phraseId={pageData} onNav={handleNav} />}
+      {page === 'exercises' && <ExercisesPage onNav={handleNav} />}
+      {page === 'cabinet' && <CabinetPage onNav={handleNav} />}
+    </Layout>
   );
-};
-
-export default Index;
+}
