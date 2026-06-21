@@ -3,6 +3,7 @@ import Icon from '@/components/ui/icon';
 import { getPhraseologismById, PHRASEOLOGISMS, CEFR_LEVELS, CEFR_DESCRIPTIONS, type CefrLevel } from '@/data/phraseology';
 import { addToHistory, getNoteForPhrase, saveNote, getCollections, addToCollection, createCollection, getStatsForPhrase } from '@/data/userStore';
 import ExerciseBlock from './ExerciseBlock';
+import MediaBlock from './MediaBlock';
 
 const CEFR_COLORS: Record<CefrLevel, string> = {
   A1: 'bg-emerald-900/40 text-emerald-300 border-emerald-700',
@@ -282,6 +283,9 @@ export default function ArticlePage({ phraseId, onNav }: ArticlePageProps) {
               </div>
             )}
           </section>
+
+          {/* Медиаблок */}
+          <MediaBlock phraseId={phrase.id} phraseTitle={phrase.title} />
 
           {/* Этимология — единая для всех уровней */}
           <section className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">

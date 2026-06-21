@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Upload audio file (base64)",
+    "method": "POST",
+    "path": "/",
+    "body": {
+      "phrase_id": "test-phrase-001",
+      "media_type": "audio",
+      "filename": "test.mp3",
+      "file_data": "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA",
+      "content_type": "audio/mpeg"
+    },
+    "expectedStatus": 200
+  }
+]

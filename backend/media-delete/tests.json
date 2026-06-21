@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Delete a media file by S3 key",
+    "method": "POST",
+    "path": "/",
+    "body": {
+      "key": "phraseology/test-phrase-001/audio/test.mp3"
+    },
+    "expectedStatus": 200
+  }
+]

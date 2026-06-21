@@ -15,6 +15,7 @@ export default function Layout({ children, page, onNav }: LayoutProps) {
     { id: 'search', label: 'Поиск', icon: 'Search' },
     { id: 'exercises', label: 'Упражнения', icon: 'PenLine' },
     { id: 'cabinet', label: 'Кабинет', icon: 'User' },
+    { id: 'media', label: 'Медиа', icon: 'Upload' },
   ];
 
   return (

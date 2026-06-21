@@ -1,0 +1,18 @@
+[
+  {
+    "name": "List all media files",
+    "method": "GET",
+    "path": "/",
+    "queryStringParameters": {},
+    "expectedStatus": 200
+  },
+  {
+    "name": "List media files for a specific phrase_id",
+    "method": "GET",
+    "path": "/",
+    "queryStringParameters": {
+      "phrase_id": "test-phrase-001"
+    },
+    "expectedStatus": 200
+  }
+]

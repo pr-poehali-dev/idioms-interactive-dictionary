@@ -5,8 +5,9 @@ import SearchPage from '@/components/SearchPage';
 import ArticlePage from '@/components/ArticlePage';
 import ExercisesPage from '@/components/ExercisesPage';
 import CabinetPage from '@/components/CabinetPage';
+import MediaUploadPage from '@/components/MediaUploadPage';
 
-type Page = 'home' | 'search' | 'article' | 'exercises' | 'cabinet';
+type Page = 'home' | 'search' | 'article' | 'exercises' | 'cabinet' | 'media';
 
 export default function Index() {
   const [page, setPage] = useState<Page>('home');
@@ -25,6 +26,7 @@ export default function Index() {
       {page === 'article' && pageData && <ArticlePage phraseId={pageData} onNav={handleNav} />}
       {page === 'exercises' && <ExercisesPage onNav={handleNav} />}
       {page === 'cabinet' && <CabinetPage onNav={handleNav} />}
+      {page === 'media' && <MediaUploadPage onNav={handleNav} />}
     </Layout>
   );
 }
