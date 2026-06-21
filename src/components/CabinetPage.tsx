@@ -3,7 +3,7 @@ import Icon from '@/components/ui/icon';
 
 import { getPhraseologismById, PHRASEOLOGISMS } from '@/data/phraseology';
 
-const SITE_URL = 'https://p31110856.poehali.dev';
+const SITE_URL = 'https://idioms-interactive-dictionary--preview.poehali.dev/';
 const QR_URL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(SITE_URL)}&color=000000&bgcolor=ffffff&qzone=2`;
 import {
   getHistory, getResults, getCollections, getAllNotes,
