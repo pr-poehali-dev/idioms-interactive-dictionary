@@ -114,13 +114,17 @@ function ImageViewer({ file }: { file: MediaFile }) {
 export default function MediaBlock({ phraseId, phraseTitle }: MediaBlockProps) {
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(false);
     listMedia(phraseId)
-      .then(setFiles)
+      .then((data) => { setFiles(data); })
+      .catch((e) => { console.error('[MediaBlock] listMedia error:', e); setError(true); })
       .finally(() => setLoading(false));
-  }, [phraseId]);
+  }, [phraseId, retryCount]);
 
   const audio = files.filter((f) => f.media_type === 'audio');
   const video = files.filter((f) => f.media_type === 'video');
@@ -138,6 +142,27 @@ export default function MediaBlock({ phraseId, phraseTitle }: MediaBlockProps) {
             <div key={i} className="h-12 rounded-xl bg-[var(--color-surface)] animate-pulse" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Icon name="PlayCircle" size={14} className="text-[var(--color-muted)]" />
+            <div className="font-body text-xs uppercase tracking-wider text-[var(--color-muted)]">Медиа</div>
+          </div>
+          <button
+            onClick={() => setRetryCount((c) => c + 1)}
+            className="flex items-center gap-1.5 text-xs font-body text-[var(--color-accent)] hover:underline"
+          >
+            <Icon name="RefreshCw" size={12} />
+            Повторить
+          </button>
+        </div>
+        <p className="font-body text-xs text-[var(--color-muted)] mt-2">Не удалось загрузить медиафайлы</p>
       </div>
     );
   }

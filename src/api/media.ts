@@ -49,10 +49,24 @@ export async function uploadMedia(
 }
 
 export async function listMedia(phraseId?: string): Promise<MediaFile[]> {
-  const url = phraseId ? `${URLS.list}?phrase_id=${phraseId}` : URLS.list;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.files || [];
+  const url = phraseId ? `${URLS.list}?phrase_id=${encodeURIComponent(phraseId)}` : URLS.list;
+
+  // retry up to 3 times with exponential backoff (cold start can take ~750ms)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.files || [];
+    } catch (e) {
+      if (attempt === 2) throw e;
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+  return [];
 }
 
 export async function deleteMedia(key: string): Promise<void> {
