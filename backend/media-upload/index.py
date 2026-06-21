@@ -71,7 +71,7 @@ def handler(event: dict, context) -> dict:
     access_key = os.environ["AWS_ACCESS_KEY_ID"]
     cdn_url = f"https://cdn.poehali.dev/projects/{access_key}/bucket/{s3_key}"
 
-    print(f"[media-upload] uploading to S3: bucket={S3_BUCKET} key={s3_key} size={len(file_bytes)} content_type={content_type}")
+    print(f"[media-upload] uploading to S3: bucket={S3_BUCKET} key={s3_key} size={len(file_bytes)} content_type={content_type} access_key_prefix={access_key[:8]}")
 
     s3 = boto3.client(
         "s3",
@@ -88,7 +88,16 @@ def handler(event: dict, context) -> dict:
             Body=file_bytes,
             ContentType=content_type,
         )
-        print(f"[media-upload] put_object response: {resp.get('ResponseMetadata', {}).get('HTTPStatusCode')}")
+        http_code = resp.get('ResponseMetadata', {}).get('HTTPStatusCode')
+        print(f"[media-upload] put_object response: {http_code}")
+        # Immediately verify file exists
+        try:
+            head = s3.head_object(Bucket=S3_BUCKET, Key=s3_key)
+            print(f"[media-upload] head_object OK size={head.get('ContentLength')}")
+        except Exception as he:
+            print(f"[media-upload] head_object FAILED after put: {he}")
+            ls = s3.list_objects_v2(Bucket=S3_BUCKET, MaxKeys=5)
+            print(f"[media-upload] bucket contents: {[o['Key'] for o in ls.get('Contents', [])]}")
     except Exception as e:
         print(f"[media-upload] S3 error: {e}")
         return {

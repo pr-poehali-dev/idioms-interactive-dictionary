@@ -35,56 +35,42 @@ def handler(event: dict, context) -> dict:
         config=Config(signature_version="s3v4"),
     )
 
-    # Определяем правильное имя бакета динамически
-    try:
-        buckets_resp = s3.list_buckets()
-        all_buckets = [b["Name"] for b in buckets_resp.get("Buckets", [])]
-        print(f"[media-list] all buckets: {all_buckets}")
-    except Exception as e:
-        print(f"[media-list] list_buckets error: {e}")
-        all_buckets = ["files"]
-
-    # Ищем файлы во всех бакетах — берём первый где есть что-то
+    # Перебираем кандидатов на имя бакета
     files = []
     found_bucket = None
-
-    for bucket in all_buckets:
+    for bucket in ["files", access_key, "media", "storage"]:
         try:
-            resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1000)
-            key_count = resp.get("KeyCount", 0)
-            print(f"[media-list] bucket={bucket!r} prefix={prefix!r} KeyCount={key_count}")
-            if key_count > 0:
+            resp = s3.list_objects_v2(Bucket=bucket, MaxKeys=10)
+            kc = resp.get("KeyCount", 0)
+            sample = [o["Key"] for o in resp.get("Contents", [])]
+            print(f"[media-list] probe bucket={bucket!r} KeyCount={kc} sample={sample}")
+            if kc > 0 and not found_bucket:
                 found_bucket = bucket
-                for obj in resp.get("Contents", []):
-                    key = obj["Key"]
-                    parts = key.split("/")
-                    if len(parts) < 4:
-                        continue
-                    parsed_phrase_id = parts[1]
-                    parsed_media_type = parts[2]
-                    parsed_filename = "/".join(parts[3:])
-                    cdn_url = f"https://cdn.poehali.dev/projects/{access_key}/bucket/{key}"
-                    files.append({
-                        "phrase_id": parsed_phrase_id,
-                        "media_type": parsed_media_type,
-                        "filename": parsed_filename,
-                        "url": cdn_url,
-                        "key": key,
-                    })
         except Exception as e:
-            print(f"[media-list] error listing bucket={bucket!r}: {e}")
+            print(f"[media-list] probe bucket={bucket!r} error: {type(e).__name__}: {e}")
 
-    # Если ничего не нашли по prefix — покажем первые 10 ключей каждого бакета для диагностики
-    if not files:
-        for bucket in all_buckets:
-            try:
-                resp = s3.list_objects_v2(Bucket=bucket, MaxKeys=10)
-                sample_keys = [o["Key"] for o in resp.get("Contents", [])]
-                print(f"[media-list] bucket={bucket!r} sample_keys={sample_keys}")
-            except Exception as e:
-                print(f"[media-list] sample error bucket={bucket!r}: {e}")
+    target = found_bucket or "files"
+    print(f"[media-list] target_bucket={target!r} prefix={prefix!r}")
+    try:
+        resp = s3.list_objects_v2(Bucket=target, Prefix=prefix, MaxKeys=1000)
+        print(f"[media-list] KeyCount={resp.get('KeyCount', 0)}")
+        for obj in resp.get("Contents", []):
+            key = obj["Key"]
+            parts = key.split("/")
+            if len(parts) < 4:
+                continue
+            cdn_url = f"https://cdn.poehali.dev/projects/{access_key}/bucket/{key}"
+            files.append({
+                "phrase_id": parts[1],
+                "media_type": parts[2],
+                "filename": "/".join(parts[3:]),
+                "url": cdn_url,
+                "key": key,
+            })
+    except Exception as e:
+        print(f"[media-list] list error: {e}")
 
-    print(f"[media-list] found_bucket={found_bucket!r} returning {len(files)} files")
+    print(f"[media-list] returning {len(files)} files")
     return {
         "statusCode": 200,
         "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
