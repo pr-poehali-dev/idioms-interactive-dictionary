@@ -10,7 +10,6 @@ CORS_HEADERS = {
 }
 
 S3_ENDPOINT = "https://bucket.poehali.dev"
-S3_BUCKET = "files"
 
 
 def handler(event: dict, context) -> dict:
@@ -36,53 +35,56 @@ def handler(event: dict, context) -> dict:
         config=Config(signature_version="s3v4"),
     )
 
+    # Определяем правильное имя бакета динамически
     try:
-        files = []
-        continuation_token = None
-
-        while True:
-            kwargs = {"Bucket": S3_BUCKET, "Prefix": prefix, "MaxKeys": 1000}
-            if continuation_token:
-                kwargs["ContinuationToken"] = continuation_token
-
-            response = s3.list_objects_v2(**kwargs)
-            print(f"[media-list] prefix={prefix!r} KeyCount={response.get('KeyCount', 0)}")
-
-            for obj in response.get("Contents", []):
-                key = obj["Key"]
-                parts = key.split("/")
-                # key format: phraseology/{phrase_id}/{media_type}/{filename}
-                if len(parts) < 4:
-                    continue
-                parsed_phrase_id = parts[1]
-                parsed_media_type = parts[2]
-                parsed_filename = "/".join(parts[3:])
-                cdn_url = (
-                    f"https://cdn.poehali.dev/projects/{access_key}"
-                    f"/bucket/{key}"
-                )
-                files.append({
-                    "phrase_id": parsed_phrase_id,
-                    "media_type": parsed_media_type,
-                    "filename": parsed_filename,
-                    "url": cdn_url,
-                    "key": key,
-                })
-
-            if response.get("IsTruncated"):
-                continuation_token = response.get("NextContinuationToken")
-            else:
-                break
-
+        buckets_resp = s3.list_buckets()
+        all_buckets = [b["Name"] for b in buckets_resp.get("Buckets", [])]
+        print(f"[media-list] all buckets: {all_buckets}")
     except Exception as e:
-        print(f"[media-list] ERROR: {e}")
-        return {
-            "statusCode": 500,
-            "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
-            "body": json.dumps({"files": [], "error": str(e)}),
-        }
+        print(f"[media-list] list_buckets error: {e}")
+        all_buckets = ["files"]
 
-    print(f"[media-list] returning {len(files)} files")
+    # Ищем файлы во всех бакетах — берём первый где есть что-то
+    files = []
+    found_bucket = None
+
+    for bucket in all_buckets:
+        try:
+            resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1000)
+            key_count = resp.get("KeyCount", 0)
+            print(f"[media-list] bucket={bucket!r} prefix={prefix!r} KeyCount={key_count}")
+            if key_count > 0:
+                found_bucket = bucket
+                for obj in resp.get("Contents", []):
+                    key = obj["Key"]
+                    parts = key.split("/")
+                    if len(parts) < 4:
+                        continue
+                    parsed_phrase_id = parts[1]
+                    parsed_media_type = parts[2]
+                    parsed_filename = "/".join(parts[3:])
+                    cdn_url = f"https://cdn.poehali.dev/projects/{access_key}/bucket/{key}"
+                    files.append({
+                        "phrase_id": parsed_phrase_id,
+                        "media_type": parsed_media_type,
+                        "filename": parsed_filename,
+                        "url": cdn_url,
+                        "key": key,
+                    })
+        except Exception as e:
+            print(f"[media-list] error listing bucket={bucket!r}: {e}")
+
+    # Если ничего не нашли по prefix — покажем первые 10 ключей каждого бакета для диагностики
+    if not files:
+        for bucket in all_buckets:
+            try:
+                resp = s3.list_objects_v2(Bucket=bucket, MaxKeys=10)
+                sample_keys = [o["Key"] for o in resp.get("Contents", [])]
+                print(f"[media-list] bucket={bucket!r} sample_keys={sample_keys}")
+            except Exception as e:
+                print(f"[media-list] sample error bucket={bucket!r}: {e}")
+
+    print(f"[media-list] found_bucket={found_bucket!r} returning {len(files)} files")
     return {
         "statusCode": 200,
         "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
