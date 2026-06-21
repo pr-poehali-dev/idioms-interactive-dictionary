@@ -1,51 +1,37 @@
 import json
 import os
-import boto3
-from botocore.client import Config
-
+import psycopg2
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-User-Id",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
 }
 
-S3_ENDPOINT = "https://bucket.poehali.dev"
-S3_BUCKET = "files"
+SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p31110856_idioms_interactive_d")
 
 
 def handler(event: dict, context) -> dict:
-    """
-    Удаляет медиафайл из S3 по указанному ключу.
-    Принимает DELETE или POST запрос с телом {"key": "phraseology/..."}.
-    Возвращает {"success": True} при успешном удалении.
-    """
+    """Удаляет медиа-ссылку из БД по id."""
     if event.get("httpMethod") == "OPTIONS":
-        return {
-            "statusCode": 200,
-            "headers": CORS_HEADERS,
-            "body": "",
-        }
+        return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
 
     body = json.loads(event.get("body") or "{}")
-    s3_key = body["key"]
+    media_id = body.get("id")
 
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=S3_ENDPOINT,
-        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        config=Config(signature_version="s3v4"),
-    )
-
-    try:
-        s3.delete_object(Bucket=S3_BUCKET, Key=s3_key)
-    except Exception as e:
+    if not media_id:
         return {
-            "statusCode": 500,
+            "statusCode": 400,
             "headers": {**CORS_HEADERS, "Content-Type": "application/json"},
-            "body": json.dumps({"success": False, "error": str(e)}),
+            "body": json.dumps({"success": False, "error": "id обязателен"}),
         }
+
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM {SCHEMA}.phrase_media WHERE id = %s", (media_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
 
     return {
         "statusCode": 200,

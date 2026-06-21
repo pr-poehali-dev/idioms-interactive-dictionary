@@ -7,74 +7,43 @@ const URLS = {
 export type MediaType = 'audio' | 'video' | 'image';
 
 export interface MediaFile {
+  id: number;
   phrase_id: string;
   media_type: MediaType;
-  filename: string;
   url: string;
-  key: string;
+  title: string;
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-export async function uploadMedia(
+export async function addMedia(
   phraseId: string,
   mediaType: MediaType,
-  file: File
-): Promise<{ url: string; key: string }> {
-  const base64 = await fileToBase64(file);
+  url: string,
+  title: string
+): Promise<{ id: number }> {
   const res = await fetch(URLS.upload, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      phrase_id: phraseId,
-      media_type: mediaType,
-      filename: file.name,
-      file_data: base64,
-      content_type: file.type,
-    }),
+    body: JSON.stringify({ phrase_id: phraseId, media_type: mediaType, url, title }),
   });
   const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Upload failed');
-  return { url: data.url, key: data.key };
+  if (!data.success) throw new Error(data.error || 'Ошибка сохранения');
+  return { id: data.id };
 }
 
 export async function listMedia(phraseId?: string): Promise<MediaFile[]> {
   const url = phraseId ? `${URLS.list}?phrase_id=${encodeURIComponent(phraseId)}` : URLS.list;
-
-  // retry up to 3 times with exponential backoff (cold start can take ~750ms)
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return data.files || [];
-    } catch (e) {
-      if (attempt === 2) throw e;
-      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-    }
-  }
-  return [];
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.files || [];
 }
 
-export async function deleteMedia(key: string): Promise<void> {
+export async function deleteMedia(id: number): Promise<void> {
   const res = await fetch(URLS.delete, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key }),
+    body: JSON.stringify({ id }),
   });
   const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Delete failed');
+  if (!data.success) throw new Error(data.error || 'Ошибка удаления');
 }

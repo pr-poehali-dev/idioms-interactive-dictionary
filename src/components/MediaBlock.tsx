@@ -7,6 +7,11 @@ interface MediaBlockProps {
   phraseTitle: string;
 }
 
+function getYoutubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 function AudioPlayer({ file }: { file: MediaFile }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -41,12 +46,11 @@ function AudioPlayer({ file }: { file: MediaFile }) {
         <Icon name={playing ? 'Pause' : 'Play'} size={16} className="text-[var(--color-bg)]" />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="font-body text-xs text-[var(--color-muted)] mb-1.5 truncate">{file.filename}</div>
+        <div className="font-body text-xs text-[var(--color-muted)] mb-1.5 truncate">
+          {file.title || 'Аудио'}
+        </div>
         <div className="h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden">
-          <div
-            className="h-full bg-[var(--color-accent)] rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-[var(--color-accent)] rounded-full transition-all" style={{ width: `${progress}%` }} />
         </div>
       </div>
       {duration > 0 && (
@@ -57,17 +61,24 @@ function AudioPlayer({ file }: { file: MediaFile }) {
 }
 
 function VideoPlayer({ file }: { file: MediaFile }) {
+  const ytId = getYoutubeId(file.url);
   return (
     <div className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-black">
-      <video
-        src={file.url}
-        controls
-        className="w-full max-h-64 object-contain"
-        preload="metadata"
-      />
-      <div className="px-3 py-2 bg-[var(--color-surface)]">
-        <span className="font-body text-xs text-[var(--color-muted)]">{file.filename}</span>
-      </div>
+      {ytId ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}`}
+          className="w-full aspect-video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      ) : (
+        <video src={file.url} controls className="w-full max-h-64 object-contain" preload="metadata" />
+      )}
+      {file.title && (
+        <div className="px-3 py-2 bg-[var(--color-surface)]">
+          <span className="font-body text-xs text-[var(--color-muted)]">{file.title}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -82,7 +93,7 @@ function ImageViewer({ file }: { file: MediaFile }) {
       >
         <img
           src={file.url}
-          alt={file.filename}
+          alt={file.title || 'Иллюстрация'}
           className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
@@ -90,15 +101,8 @@ function ImageViewer({ file }: { file: MediaFile }) {
         </div>
       </button>
       {open && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setOpen(false)}
-        >
-          <img
-            src={file.url}
-            alt={file.filename}
-            className="max-w-full max-h-full object-contain rounded-xl"
-          />
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in" onClick={() => setOpen(false)}>
+          <img src={file.url} alt={file.title || ''} className="max-w-full max-h-full object-contain rounded-xl" />
           <button
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
             onClick={() => setOpen(false)}
@@ -121,8 +125,8 @@ export default function MediaBlock({ phraseId, phraseTitle }: MediaBlockProps) {
     setLoading(true);
     setError(false);
     listMedia(phraseId)
-      .then((data) => { setFiles(data); })
-      .catch((e) => { console.error('[MediaBlock] listMedia error:', e); setError(true); })
+      .then(setFiles)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [phraseId, retryCount]);
 
@@ -130,42 +134,32 @@ export default function MediaBlock({ phraseId, phraseTitle }: MediaBlockProps) {
   const video = files.filter((f) => f.media_type === 'video');
   const images = files.filter((f) => f.media_type === 'image');
 
-  if (loading) {
-    return (
-      <div className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">
-        <div className="flex items-center gap-2 mb-3">
+  if (loading) return (
+    <div className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon name="PlayCircle" size={14} className="text-[var(--color-muted)]" />
+        <div className="font-body text-xs uppercase tracking-wider text-[var(--color-muted)]">Медиа</div>
+      </div>
+      <div className="space-y-2">
+        {[1, 2].map((i) => <div key={i} className="h-12 rounded-xl bg-[var(--color-surface)] animate-pulse" />)}
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Icon name="PlayCircle" size={14} className="text-[var(--color-muted)]" />
           <div className="font-body text-xs uppercase tracking-wider text-[var(--color-muted)]">Медиа</div>
         </div>
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-12 rounded-xl bg-[var(--color-surface)] animate-pulse" />
-          ))}
-        </div>
+        <button onClick={() => setRetryCount((c) => c + 1)} className="flex items-center gap-1.5 text-xs font-body text-[var(--color-accent)] hover:underline">
+          <Icon name="RefreshCw" size={12} />Повторить
+        </button>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-5 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)]">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon name="PlayCircle" size={14} className="text-[var(--color-muted)]" />
-            <div className="font-body text-xs uppercase tracking-wider text-[var(--color-muted)]">Медиа</div>
-          </div>
-          <button
-            onClick={() => setRetryCount((c) => c + 1)}
-            className="flex items-center gap-1.5 text-xs font-body text-[var(--color-accent)] hover:underline"
-          >
-            <Icon name="RefreshCw" size={12} />
-            Повторить
-          </button>
-        </div>
-        <p className="font-body text-xs text-[var(--color-muted)] mt-2">Не удалось загрузить медиафайлы</p>
-      </div>
-    );
-  }
+      <p className="font-body text-xs text-[var(--color-muted)] mt-2">Не удалось загрузить медиафайлы</p>
+    </div>
+  );
 
   if (files.length === 0) return null;
 
@@ -177,40 +171,34 @@ export default function MediaBlock({ phraseId, phraseTitle }: MediaBlockProps) {
           Мультимедиа · <span className="text-[var(--color-accent)]">{phraseTitle}</span>
         </div>
       </div>
-
       <div className="space-y-4">
         {audio.length > 0 && (
           <div>
             <div className="font-body text-xs text-[var(--color-muted)] mb-2 flex items-center gap-1.5">
-              <Icon name="Volume2" size={12} />
-              Произношение
+              <Icon name="Volume2" size={12} />Произношение
             </div>
             <div className="space-y-2">
-              {audio.map((f) => <AudioPlayer key={f.key} file={f} />)}
+              {audio.map((f) => <AudioPlayer key={f.id} file={f} />)}
             </div>
           </div>
         )}
-
         {video.length > 0 && (
           <div>
             <div className="font-body text-xs text-[var(--color-muted)] mb-2 flex items-center gap-1.5">
-              <Icon name="Video" size={12} />
-              Видео-объяснение
+              <Icon name="Video" size={12} />Видео-объяснение
             </div>
             <div className="space-y-3">
-              {video.map((f) => <VideoPlayer key={f.key} file={f} />)}
+              {video.map((f) => <VideoPlayer key={f.id} file={f} />)}
             </div>
           </div>
         )}
-
         {images.length > 0 && (
           <div>
             <div className="font-body text-xs text-[var(--color-muted)] mb-2 flex items-center gap-1.5">
-              <Icon name="Image" size={12} />
-              Иллюстрации
+              <Icon name="Image" size={12} />Иллюстрации
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {images.map((f) => <ImageViewer key={f.key} file={f} />)}
+              {images.map((f) => <ImageViewer key={f.id} file={f} />)}
             </div>
           </div>
         )}
