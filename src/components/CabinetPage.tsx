@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import Icon from '@/components/ui/icon';
+
 import { getPhraseologismById, PHRASEOLOGISMS } from '@/data/phraseology';
+
+const SITE_URL = 'https://p31110856.poehali.dev';
+const QR_URL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(SITE_URL)}&color=000000&bgcolor=ffffff&qzone=2`;
 import {
   getHistory, getResults, getCollections, getAllNotes,
   createCollection, deleteCollection, removeFromCollection,
@@ -257,6 +261,27 @@ export default function CabinetPage({ onNav }: { onNav: (page: string, data?: st
           })}
         </div>
       )}
+
+      {/* QR-код для доступа к сайту */}
+      <div className="mt-8 p-6 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)] text-center">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <Icon name="QrCode" size={16} className="text-[var(--color-accent)]" />
+          <span className="font-body text-xs uppercase tracking-wider text-[var(--color-muted)]">QR-код сайта</span>
+        </div>
+        <div className="inline-block p-3 rounded-xl bg-white shadow-sm border border-[var(--color-border)] mb-4">
+          <img src={QR_URL} alt="QR-код сайта" width={200} height={200} className="block" />
+        </div>
+        <p className="font-body text-sm text-[var(--color-text)] font-medium mb-1">Русские фразеологизмы</p>
+        <p className="font-body text-xs text-[var(--color-muted)] mb-4">{SITE_URL}</p>
+        <a
+          href={QR_URL}
+          download="qr-phraseology.png"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-accent)] text-[var(--color-bg)] font-body text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          <Icon name="Download" size={14} />
+          Скачать QR-код
+        </a>
+      </div>
     </div>
   );
 }
